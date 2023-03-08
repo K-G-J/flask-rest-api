@@ -15,3 +15,4 @@ A Python flask project of a REST API.
 - flask
 - flask-restful
 - peewee
+- reqparse
