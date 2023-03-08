@@ -16,3 +16,4 @@ A Python flask project of a REST API.
 - flask-restful
 - peewee
 - reqparse
+- argon2-cffi

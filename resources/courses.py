@@ -50,7 +50,7 @@ class CourseList(Resource):
     @marshal_with(course_fields)
     def post(self):
         args = self.reqparse.parse_args()
-        # feed everything in the args dictionary into course.Create
+        # feed everything in the args dictionary into Course.create
         course = models.Course.create(**args)
         return (add_reviews(course), 201, {'Location': url_for('resources.courses.course', id=course.id)})
 
