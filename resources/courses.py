@@ -1,8 +1,32 @@
-from flask import jsonify, Blueprint
+from flask import jsonify, Blueprint, abort
 
-from flask_restful import Resource, Api, reqparse, inputs
+from flask_restful import (Resource, Api, reqparse,
+                           inputs, fields, marshal, marshal_with, url_for)
 
 import models
+
+
+course_fields = {
+    'id': fields.Integer,
+    'title': fields.String,
+    'url': fields.String,
+    'reviews': fields.List(fields.String)
+}
+
+
+def add_reviews(course):
+    course.reviews = [url_for('resources.reviews.review', id=review.id)
+                      for review in course.review_set]
+    return course
+
+
+def course_or_404(course_id):
+    try:
+        course = models.Course.get(models.Course.id == course_id)
+    except models.Course.DoesNotExist:
+        abort(404)
+    else:
+        return course
 
 
 class CourseList(Resource):
@@ -18,13 +42,17 @@ class CourseList(Resource):
         super().__init__()
 
     def get(self):
-        return jsonify({'courses': [{'title': 'Python Basics'}]})
-    
+        # provide marshal with record and defined fields
+        courses = [marshal(add_reviews(course), course_fields)
+                   for course in models.Course.select()]
+        return jsonify({'courses': courses})
+
+    @marshal_with(course_fields)
     def post(self):
         args = self.reqparse.parse_args()
         # feed everything in the args dictionary into course.Create
-        models.Course.create(**args)
-        return jsonify({'courses': [{'title': 'Python Basics'}]})
+        course = models.Course.create(**args)
+        return (add_reviews(course), 201, {'Location': url_for('resources.courses.course', id=course.id)})
 
 
 class Course(Resource):
@@ -37,15 +65,24 @@ class Course(Resource):
             'url', required=True, help='No course url provided', location=['form', 'json'], type=inputs.url
         )
         super().__init__()
-    
-    def get(self, id):
-        return jsonify({'title': 'Python Basics'})
 
+    # marshals record with fields
+    @marshal_with(course_fields)
+    def get(self, id):
+        return add_reviews(course_or_404(id))
+
+    @marshal_with(course_fields)
     def put(self, id):
-        return jsonify({'title': 'Python Basics'})
+        args = self.reqparse.parse_args()
+        query = models.Course.update(**args).where(models.Course.id == id)
+        query.execute()
+        # fetch the updated model, add header
+        return (add_reviews(models.Course.get(models.Course.id == id)), 200, {'Location': url_for('resources/courses.course', id=id)})
 
     def delete(self, id):
-        return jsonify({'title': 'Python Basics'})
+        query = models.Course.delete().where(models.Course.id == id)
+        query.execute()
+        return ('', 204, {'Location': url_for('resources/courses.courses')})
 
 
 courses_api = Blueprint('resources/courses', __name__)
