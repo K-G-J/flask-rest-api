@@ -14,6 +14,8 @@ A Python flask project of a REST API.
 
 - flask
 - flask-restful
+- flask-httpauth
 - peewee
+- Sqlite
 - reqparse
 - argon2-cffi

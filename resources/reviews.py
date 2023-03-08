@@ -1,8 +1,10 @@
-from flask import jsonify, Blueprint, abort
+import json
+from flask import jsonify, Blueprint, abort, g, make_response
 
 from flask_restful import (Resource, Api, reqparse,
                            inputs, fields, marshal, marshal_with, url_for)
 
+from auth import auth
 import models
 
 
@@ -49,10 +51,14 @@ class ReviewList(Resource):
                    for review in models.Review.select()]
         return {'reviews': reviews}
 
+    @auth.login_required
     @marshal_with(review_fields)
     def post(self):
         args = self.reqparse.parse_args()
-        review = models.Review.create(**args)
+        review = models.Review.create(
+            created_by=g.user,
+            **args
+        )
         return (add_course(review), 201, {'Location': url_for('resources.reviews.review', id=review.id)})
 
 
@@ -75,15 +81,28 @@ class Review(Resource):
         return add_course(review_or_404(id))
 
     @marshal_with(review_fields)
+    @auth.login_required
     def put(self, id):
         args = self.reqparse.parse_args()
-        query = models.Review.update(**args).where(models.Review.id == id)
+        try:
+            review = models.Review.select().where(models.Review.created_by ==
+                                                  g.user, models.Review.id == id).get()
+        except models.Review.DoesNotExist:
+            return make_response(json.dumps({'error': 'That reviews does not exist or is not editable'}), 403)
+        query = models.Review.update(**args)
         query.execute()
-        # fetch the updated model, add header
-        return (add_course(models.Review.get(models.Review.id == id)), 200, {'Location': url_for('resources/reviews.review', id=id)})
+        # fetch the updated model
+        review = add_course(review_or_404(id))
+        return (review, 200, {'Location': url_for('resources/reviews.review', id=id)})
 
+    @auth.login_required
     def delete(self, id):
-        query = models.Review.delete().where(models.Review.id == id)
+        try:
+            review = models.Review.select().where(models.Review.created_by ==
+                                                  g.user, models.Review.id == id).get()
+        except models.Review.DoesNotExist:
+            return make_response(json.dumps({'error': 'That reviews does not exist or is not deletable'}), 403)
+        query = review.delete()
         query.execute()
         return ('', 204, {'Location': url_for('resources/reviews.reviews')})
 

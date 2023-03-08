@@ -3,6 +3,7 @@ from flask import jsonify, Blueprint, abort
 from flask_restful import (Resource, Api, reqparse,
                            inputs, fields, marshal, marshal_with, url_for)
 
+from auth import auth
 import models
 
 
@@ -48,6 +49,7 @@ class CourseList(Resource):
         return jsonify({'courses': courses})
 
     @marshal_with(course_fields)
+    @auth.login_required
     def post(self):
         args = self.reqparse.parse_args()
         # feed everything in the args dictionary into Course.create
@@ -72,15 +74,20 @@ class Course(Resource):
         return add_reviews(course_or_404(id))
 
     @marshal_with(course_fields)
+    @auth.login_required
     def put(self, id):
         args = self.reqparse.parse_args()
-        query = models.Course.update(**args).where(models.Course.id == id)
+        course = course_or_404(id)
+        query = course.update(**args)
         query.execute()
-        # fetch the updated model, add header
-        return (add_reviews(models.Course.get(models.Course.id == id)), 200, {'Location': url_for('resources/courses.course', id=id)})
+        # fetch the updated model
+        course = add_reviews(course_or_404(id))
+        return (course, 200, {'Location': url_for('resources/courses.course', id=id)})
 
+    @auth.login_required
     def delete(self, id):
-        query = models.Course.delete().where(models.Course.id == id)
+        course = course_or_404(id)
+        query = course.delete()
         query.execute()
         return ('', 204, {'Location': url_for('resources/courses.courses')})
 
