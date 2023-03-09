@@ -19,3 +19,4 @@ A Python flask project of a REST API.
 - Sqlite
 - reqparse
 - argon2-cffi
+- itsdangerous
