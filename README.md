@@ -20,3 +20,4 @@ A Python flask project of a REST API.
 - reqparse
 - argon2-cffi
 - itsdangerous
+- flask_limiter

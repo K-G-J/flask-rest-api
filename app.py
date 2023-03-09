@@ -1,5 +1,8 @@
 from flask import Flask, g, jsonify
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 from auth import auth
 import config
 import models
@@ -12,6 +15,18 @@ app = Flask(__name__)
 app.register_blueprint(courses_api)
 app.register_blueprint(reviews_api, url_prefix='/api/v1')
 app.register_blueprint(users_api, url_prefix='/api/v1')
+
+# pass app, limits, and way of getting users identification (IP address)
+limiter = Limiter(app=app, default_limits=[
+                  config.DEFAULT_RATE], key_func=get_remote_address)
+limiter.limit('40/day')(users_api)  # specific limit
+# custom limits on methods
+limiter.limit(config.DEFAULT_RATE, per_method=True, methods=[
+              'post', 'put', 'delete'])(courses_api)
+limiter.limit(config.DEFAULT_RATE, per_method=True, methods=[
+              'post', 'put', 'delete'])(reviews_api)
+# limiter.exempt(courses_api)
+# limiter.exempt(reviews_api)
 
 
 @app.route('/')
